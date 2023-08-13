@@ -1,0 +1,12 @@
+str1 = input("Enter the string:")
+d = dict()
+for c in str1:
+    if c in d:
+        
+        d[c] = d[c]+1
+    else:
+         
+         d[c] =1
+         print(d)
+ 
+            

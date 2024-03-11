@@ -1,0 +1,208 @@
+3.1   -- Create the table
+CREATE TABLE Crimes (
+    District VARCHAR(255),
+    CrimeType VARCHAR(255),
+    Year INT,
+    Count INT
+);
+
+-- Load data from the CSV file into the table
+COPY Crimes(District, CrimeType, Year, Count)
+FROM '/path/to/42_District_wise_crimes_committed_against.csv' DELIMITER ',' CSV HEADER;
+
+3.2
+SELECT
+    State,
+    District,
+    Year,
+    CrimeType,
+    Count
+FROM
+    CrimeStatistics
+WHERE
+    (CrimeType = 'Rape' OR CrimeType = 'Kidnapping') AND
+    (Count = (
+        SELECT MAX(Count)
+        FROM CrimeStatistics
+        WHERE CrimeType = 'Rape'
+    ) OR Count = (
+        SELECT MAX(Count)
+        FROM CrimeStatistics
+        WHERE CrimeType = 'Kidnapping'
+    ));
+
+3.3
+WITH RankedCrimes AS (
+    SELECT
+        State,
+        District,
+        Year,
+        CrimeType,
+        Count,
+        RANK() OVER (PARTITION BY CrimeType ORDER BY Count) AS CrimeRank
+    FROM
+        CrimeStatistics
+    WHERE
+        CrimeType IN ('Rape', 'Kidnapping')
+)
+SELECT
+    State,
+    District,
+    Year,
+    CrimeType,
+    Count
+FROM
+    RankedCrimes
+WHERE
+    CrimeRank = 1;
+
+3.4
+-- Create a new table (replace with the actual column types and names)
+CREATE TABLE NewCrimeTable (
+    District VARCHAR(255),
+    CrimeType VARCHAR(255),
+    Year INT,
+    Count INT
+);
+
+-- Insert records from the original table into the new table
+INSERT INTO NewCrimeTable (District, CrimeType, Year, Count)
+SELECT District, CrimeType, Year, Count
+FROM "02_District_wise_crimes_committed_against";
+
+3.5
+SELECT
+    District,
+    MAX(Count) AS MaxDacoityRobberyCount
+FROM
+    CrimeStatistics
+WHERE
+    CrimeType IN ('Dacoity', 'Robbery')
+GROUP BY
+    District;
+
+3.6
+WITH RankedMurders AS (
+    SELECT
+        District,
+        Count,
+        RANK() OVER (ORDER BY Count) AS MurderRank
+    FROM
+        CrimeStatistics
+    WHERE
+        CrimeType = 'Murder'
+)
+SELECT
+    District,
+    Count
+FROM
+    RankedMurders
+WHERE
+    MurderRank = 1;
+
+3.7
+SELECT
+    District,
+    Year,
+    Count
+FROM
+    CrimeStatistics
+WHERE
+    CrimeType = 'Murder'
+ORDER BY
+    District,
+    Year,
+    Count;
+
+3.8.1
+-- Assuming the new table structure is similar to the columns mentioned
+CREATE TABLE NewCrimeTable (
+    STATE_UT VARCHAR(255),
+    DISTRICT VARCHAR(255),
+    YEAR INT,
+    MURDER INT,
+    ATTEMPT_TO_MURDER INT,
+    RAPE INT
+);
+
+-- Insert records from the original table into the new table
+INSERT INTO NewCrimeTable (STATE_UT, DISTRICT, YEAR, MURDER, ATTEMPT_TO_MURDER, RAPE)
+SELECT STATE_UT, DISTRICT, YEAR, MURDER, ATTEMPT_TO_MURDER, RAPE
+FROM "01_District_wise_crimes_committed_IPC_200";
+
+3.8.2
+WITH RankedMurders AS (
+    SELECT
+        STATE_UT,
+        DISTRICT,
+        YEAR,
+        MURDER,
+        RANK() OVER (PARTITION BY STATE_UT, YEAR ORDER BY MURDER DESC) AS MurderRank
+    FROM
+        "01_District_wise_crimes_committed_IPC_200"
+)
+SELECT
+    STATE_UT,
+    YEAR,
+    DISTRICT,
+    MURDER
+FROM
+    RankedMurders
+WHERE
+    MurderRank = 1;
+
+3.8.3
+import pandas as pd
+import sqlite3
+
+# Assuming you have the SQLite database connection and cursor
+# conn = sqlite3.connect('your_database.db')
+# cursor = conn.cursor()
+
+# Sample data (replace with your actual SQL query)
+result_data = [
+    ('State1', 'District1', 2020, 50),
+    ('State1', 'District1', 2021, 55),
+    ('State1', 'District1', 2022, 60),
+    ('State1', 'District2', 2020, 40),
+    ('State1', 'District2', 2021, 45),
+    ('State1', 'District2', 2022, 50),
+    ('State2', 'District3', 2020, 30),
+    ('State2', 'District3', 2021, 35),
+    ('State2', 'District3', 2022, 40)
+]
+
+# Create a DataFrame from the result_data
+columns = ['STATE_UT', 'DISTRICT', 'YEAR', 'MURDER']
+df = pd.DataFrame(result_data, columns=columns)
+
+# Analyze districts appearing 3 or more years
+district_counts = df.groupby(['STATE_UT', 'DISTRICT']).size().reset_index(name='YearCount')
+filtered_districts = district_counts[district_counts['YearCount'] >= 3]
+
+# Filter the original DataFrame based on districts that appear 3 or more years
+filtered_df = df[df['DISTRICT'].isin(filtered_districts['DISTRICT'])]
+
+# Print the result in descending order
+result_df = filtered_df.sort_values(by=['YearCount', 'MURDER', 'YEAR'], ascending=[False, False, False])
+print(result_df[['STATE_UT', 'DISTRICT', 'MURDER', 'YEAR']])
+
+3.8.4
+pip install matplotlib
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Assuming you have the DataFrame 'result_df' from the previous example
+
+# Group by state and district and count the number of years
+district_counts = result_df.groupby(['STATE_UT', 'DISTRICT']).size().reset_index(name='YearCount')
+
+# Plotting a bar chart
+plt.figure(figsize=(12, 6))
+plt.bar(range(len(district_counts)), district_counts['YearCount'], color='skyblue')
+plt.xticks(range(len(district_counts)), district_counts['DISTRICT'], rotation=45, ha='right')
+plt.xlabel('District')
+plt.ylabel('Number of Years Appeared')
+plt.title('Number of Years Each District Appears (3 or More Years)')
+plt.tight_layout()
+plt.show()
